@@ -218,19 +218,23 @@ def render_charts(df: pd.DataFrame) -> None:
                       var_name="event", value_name="value")
     df_long = df_long[df_long["value"] == 1]
 
-    # Daily totals
+    # Daily totals per event (line chart)
     daily_chart = (
         alt.Chart(df_long)
-        .mark_bar()
+        .transform_aggregate(
+            count="count()",
+            groupby=["date", "event"],
+        )
+        .mark_line(point=True)
         .encode(
             x=alt.X("date:T", title="Date"),
-            y=alt.Y("count():Q", title="Events"),
-            color=alt.Color("event:N", title="Type"),
-            tooltip=["date:T", "event:N", alt.Tooltip("count():Q", title="Events")],
+            y=alt.Y("count:Q", title="Count"),
+            color=alt.Color("event:N", title="Event"),
+            tooltip=["date:T", "event:N", alt.Tooltip("count:Q", title="Count")],
         )
         .properties(height=220)
     )
-    st.subheader("Daily totals")
+    st.subheader("Daily totals per event")
     st.altair_chart(daily_chart, use_container_width=True)
 
     # Scatter plot of events over time
