@@ -237,7 +237,7 @@ def render_charts(df: pd.DataFrame) -> None:
     st.subheader("Daily totals per event")
     st.altair_chart(daily_chart, use_container_width=True)
 
-    # Scatter plot of events over time
+    # Scatter plot of events over time, faceted by day
     scatter = (
         alt.Chart(df_long)
         .mark_point(size=60)
@@ -252,8 +252,10 @@ def render_charts(df: pd.DataFrame) -> None:
             color=alt.Color("event:N", title="Event"),
             tooltip=["ts:T", "event:N"],
         )
+        .facet(row=alt.Row("date:T", title="Date"))
+        .resolve_scale(y="shared")
     )
-    st.subheader("Event scatter plot")
+    st.subheader("Event scatter plots by day")
     st.altair_chart(scatter, use_container_width=True)
 
 
