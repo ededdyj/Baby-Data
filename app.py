@@ -78,7 +78,7 @@ def init_db() -> None:
                 CREATE TABLE IF NOT EXISTS entries (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     baby_id INTEGER NOT NULL,
-                    ts TEXT NOT NULL, -- ISO timestamp at hour resolution
+                    ts TEXT NOT NULL, -- ISO timestamp at minute resolution
                     milk INTEGER NOT NULL DEFAULT 0,
                     pee INTEGER NOT NULL DEFAULT 0,
                     poop INTEGER NOT NULL DEFAULT 0,
@@ -90,7 +90,7 @@ def init_db() -> None:
 
 
 def delete_entry(conn: sqlite3.Connection, baby_id: int, when: datetime) -> int:
-    ts = when.replace(minute=0, second=0, microsecond=0).isoformat()
+    ts = when.isoformat()
     cur = conn.execute(Q("DELETE FROM entries WHERE baby_id = ? AND ts = ?;"), (baby_id, ts))
     return cur.rowcount
 
@@ -144,7 +144,7 @@ def upsert_entry(
     pee: bool,
     poop: bool,
 ) -> None:
-    ts = when.replace(minute=0, second=0, microsecond=0).isoformat()
+    ts = when.isoformat()
     conn.execute(
         Q("""
         INSERT INTO entries (baby_id, ts, milk, pee, poop)
