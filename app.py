@@ -257,7 +257,7 @@ def render_charts(df: pd.DataFrame) -> None:
             tooltip=["ts:T", "event:N"],
         )
         .facet(row=alt.Row("date:T", title="Date"))
-        .resolve_scale(y="shared")
+        .resolve_scale(x="independent", y="shared")
     )
     st.subheader("Event scatter plots by day")
     st.altair_chart(scatter, use_container_width=True)
