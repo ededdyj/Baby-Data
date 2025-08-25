@@ -249,7 +249,7 @@ def render_charts(df: pd.DataFrame) -> None:
             x=alt.X(
                 "ts:T",
                 title="Timestamp",
-                axis=alt.Axis(format="%I:%M %p", labelAngle=-45, labelOverlap=False),
+                axis=alt.Axis(format="%I:%M %p", labelAngle=-45, labelOverlap=True),
                 scale=alt.Scale(nice="hour"),
             ),
             y=alt.Y("event:N", sort=["Milk", "Poop", "Pee"], title="Event"),
