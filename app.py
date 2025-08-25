@@ -114,6 +114,10 @@ def delete_everything(conn: sqlite3.Connection) -> None:
     conn.execute("DELETE FROM entries;")
     conn.execute("DELETE FROM babies;")
 
+def delete_baby(conn: sqlite3.Connection, baby_id: int) -> int:
+    cur = conn.execute(Q("DELETE FROM babies WHERE id = ?;"), (baby_id,))
+    return cur.rowcount
+
 
 def list_babies(conn: sqlite3.Connection) -> list[str]:
     cur = conn.execute("SELECT name FROM babies ORDER BY name ASC;")
@@ -347,9 +351,20 @@ def main() -> None:
                             conn.commit()
                             st.error(f"Deleted {count} entries for {baby_name}.")
                         else:
-                            delete_everything(conn)
-                            conn.commit()
-                            st.error("Deleted ALL babies and entries.")
+                delete_everything(conn)
+                conn.commit()
+                st.error("Deleted ALL babies and entries.")
+
+            # Delete baby record
+            confirm_baby = st.text_input("Type DELETE BABY to confirm", key="confirm_baby")
+            if st.button("Delete baby", key="btn_del_baby"):
+                if confirm_baby != "DELETE BABY":
+                    st.error("Confirmation text does not match. Type DELETE BABY to proceed.")
+                else:
+                    with get_conn() as conn:
+                        delete_baby(conn, baby_id)
+                        conn.commit()
+                    st.error(f"Deleted baby {baby_name} and all its data.")
 
     st.divider()
 
