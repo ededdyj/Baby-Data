@@ -233,22 +233,19 @@ def render_charts(df: pd.DataFrame) -> None:
     st.subheader("Daily totals")
     st.altair_chart(daily_chart, use_container_width=True)
 
-    # Heatmap by hour and day
-    heatmap = (
+    # Scatter plot of events over time
+    scatter = (
         alt.Chart(df_long)
-        .mark_rect()
+        .mark_point(size=60)
         .encode(
-            x=alt.X("hour:O", title="Hour of day"),
-            y=alt.Y("date:T", title="Date"),
-            color=alt.Color("count():Q", title="Events", scale=alt.Scale(scheme="blues")),
-            tooltip=["date:T", "hour:O", "event:N", alt.Tooltip("count():Q", title="Events")],
+            x=alt.X("ts:T", title="Timestamp"),
+            y=alt.Y("event:N", title="Event"),
+            color=alt.Color("event:N", title="Event"),
+            tooltip=["ts:T", "event:N"],
         )
-        .facet(row=alt.Row("event:N", title=None))
-        .resolve_scale(color="independent")
-        .properties(bounds="flush", spacing=5)
     )
-    st.subheader("Hourly heatmap")
-    st.altair_chart(heatmap, use_container_width=True)
+    st.subheader("Event scatter plot")
+    st.altair_chart(scatter, use_container_width=True)
 
 
 def main() -> None:
