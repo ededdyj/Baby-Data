@@ -132,6 +132,10 @@ def get_or_create_baby(conn: sqlite3.Connection, name: str) -> int:
     row = cur.fetchone()
     if row:
         return row[0]
+    # Insert new baby and return generated ID, handling SQLite vs Postgres
+    if IS_PG:
+        cur = conn.execute(Q("INSERT INTO babies (name) VALUES (? ) RETURNING id;"), (name,))
+        return cur.fetchone()[0]
     cur = conn.execute(Q("INSERT INTO babies (name) VALUES (?);"), (name,))
     return cur.lastrowid
 
