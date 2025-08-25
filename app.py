@@ -175,7 +175,7 @@ def fetch_entries(
     df = pd.DataFrame(rows, columns=["ts", "milk", "pee", "poop"])
     df["ts"] = pd.to_datetime(df["ts"])  # parse ISO timestamps
     df["date"] = df["ts"].dt.date
-    df["hour"] = df["ts"].dt.hour
+    df["hour"] = df["ts"].dt.strftime("%I:%M %p")
     return df
 
 
@@ -290,39 +290,40 @@ def main() -> None:
 
     # Entry form
     st.subheader("Add or update an hourly entry")
+    time_slots = [time(h, m) for h in range(24) for m in (0, 30)]
     col1, col2, col3, col4 = st.columns([2, 2, 2, 3])
     with col1:
         entry_date = st.date_input("Date", value=date.today())
     with col2:
-        hour = st.selectbox("Hour", options=list(range(24)), format_func=lambda h: f"{h:02d}:00")
+        selected_time = st.selectbox("Time", options=time_slots, format_func=lambda t: t.strftime("%I:%M %p"))
     with col3:
         milk = st.checkbox("Milk 🍼", value=False)
     with col4:
         pee = st.checkbox("#1 💧", value=False)
         poop = st.checkbox("#2 💩", value=False)
 
-    when = datetime.combine(entry_date, time(hour, 0))
+    when = datetime.combine(entry_date, selected_time)
     if st.button("Save entry", type="primary"):
         with get_conn() as conn:
             upsert_entry(conn, baby_id, when, milk, pee, poop)
             conn.commit()
-        st.success(f"Saved {baby_name}'s entry for {when.strftime('%Y-%m-%d %H:%M')}")
+        st.success(f"Saved {baby_name}'s entry for {when.strftime('%Y-%m-%d %I:%M %p')}")
 
     with st.expander("Manage data (delete)"):
         c1, c2, c3 = st.columns([2, 2, 3])
         with c1:
-            del_hour = st.selectbox(
-                "Hour to delete",
-                options=list(range(24)),
-                format_func=lambda h: f"{h:02d}:00",
+            del_time = st.selectbox(
+                "Time to delete",
+                options=time_slots,
+                format_func=lambda t: t.strftime("%I:%M %p"),
                 key="del_hour",
             )
-            del_when = datetime.combine(entry_date, time(del_hour, 0))
-            if st.button("Delete this hour", key="btn_del_hour"):
+            del_when = datetime.combine(entry_date, del_time)
+            if st.button("Delete this time", key="btn_del_hour"):
                 with get_conn() as conn:
                     count = delete_entry(conn, baby_id, del_when)
                     conn.commit()
-                st.warning(f"Deleted {count} entry for {del_when.strftime('%Y-%m-%d %H:%M')}")
+                st.warning(f"Deleted {count} entry for {del_when.strftime('%Y-%m-%d %I:%M %p')}")
 
         with c2:
             del_day = st.date_input("Day to delete", value=entry_date, key="del_day")
