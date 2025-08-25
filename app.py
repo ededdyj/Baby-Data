@@ -238,8 +238,12 @@ def render_charts(df: pd.DataFrame) -> None:
         alt.Chart(df_long)
         .mark_point(size=60)
         .encode(
-            x=alt.X("ts:T", title="Timestamp"),
-            y=alt.Y("event:N", title="Event"),
+            x=alt.X(
+                "ts:T",
+                title="Timestamp",
+                axis=alt.Axis(format="%I:%M %p", tickCount=alt.Step("hour", 1)),
+            ),
+            y=alt.Y("event:N", sort=["Milk", "Poop", "Pee"], title="Event"),
             color=alt.Color("event:N", title="Event"),
             tooltip=["ts:T", "event:N"],
         )
