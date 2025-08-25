@@ -351,9 +351,9 @@ def main() -> None:
                             conn.commit()
                             st.error(f"Deleted {count} entries for {baby_name}.")
                         else:
-                delete_everything(conn)
-                conn.commit()
-                st.error("Deleted ALL babies and entries.")
+                            delete_everything(conn)
+                            conn.commit()
+                            st.error("Deleted ALL babies and entries.")
 
             # Delete baby record
             confirm_baby = st.text_input("Type DELETE BABY to confirm", key="confirm_baby")
