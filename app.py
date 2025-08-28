@@ -291,6 +291,10 @@ def main() -> None:
         row = cur.fetchone()
     if row:
         default_milk, default_pee, default_poop = bool(row[0]), bool(row[1]), bool(row[2])
+        # Warn user that existing data will be overwritten
+        st.warning(
+            f"Existing entry on {entry_when.strftime('%Y-%m-%d %I:%M %p')} detected; saving will overwrite it."
+        )
     else:
         default_milk, default_pee, default_poop = False, False, False
 
