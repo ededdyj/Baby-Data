@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from datetime import date, datetime, time, timedelta
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 import streamlit as st
@@ -10,6 +11,9 @@ import psycopg  # psycopg3
 
 DB_URL = st.secrets.get("DATABASE_URL") or os.getenv("DATABASE_URL")
 IS_PG = True
+
+# Use Eastern Time for 'today' calculations
+LOCAL_TZ = ZoneInfo("America/New_York")
 
 
 def get_conn():
@@ -148,7 +152,7 @@ def fetch_entries(
 
 
 def timeframe_to_range(option: str, custom_range: tuple[date, date] | None) -> tuple[datetime, datetime]:
-    today = date.today()
+    today = datetime.now(LOCAL_TZ).date()
     if option == "Today":
         start_d = today
         end_d = today
@@ -342,15 +346,46 @@ def main() -> None:
 
     # History and charts
     st.subheader("History & insights")
+    # Compute local today for default date inputs
+    local_today = datetime.now(LOCAL_TZ).date()
+
+    # Quick overview of most recent events
+    with get_conn() as conn:
+        cur = conn.execute(
+            Q("""
+            SELECT
+                MAX(ts) FILTER (WHERE milk = 1) AS last_milk,
+                MAX(ts) FILTER (WHERE pee  = 1) AS last_pee,
+                MAX(ts) FILTER (WHERE poop = 1) AS last_poop
+            FROM entries
+            WHERE baby_id = %s;
+            """),
+            (baby_id,),
+        )
+        last_milk_ts, last_pee_ts, last_poop_ts = cur.fetchone()
+    cols_last = st.columns(3)
+    for label, ts_str, col in [
+        ("Milk", last_milk_ts, cols_last[0]),
+        ("#1", last_pee_ts, cols_last[1]),
+        ("#2", last_poop_ts, cols_last[2]),
+    ]:
+        if ts_str:
+            ts = datetime.fromisoformat(ts_str)
+            col.metric(f"Last {label}", ts.strftime("%Y-%m-%d %I:%M %p"))
+        else:
+            col.metric(f"Last {label}", "None")
     timeframe = st.selectbox(
         "Timeframe",
         ["Today", "Last 3 days", "Last 7 days", "Last 30 days", "Custom"],
-        index=2,
+        index=0,
     )
 
     custom_range = None
     if timeframe == "Custom":
-        custom_range = st.date_input("Pick date range", value=(date.today() - timedelta(days=6), date.today()))
+        custom_range = st.date_input(
+            "Pick date range",
+            value=(local_today - timedelta(days=6), local_today),
+        )
         if isinstance(custom_range, date):
             custom_range = (custom_range, custom_range)
 
