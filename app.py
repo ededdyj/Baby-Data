@@ -14,6 +14,9 @@ IS_PG = True
 
 def get_conn():
     """Return a Postgres connection to Neon DB."""
+    if not DB_URL:
+        st.error("`DATABASE_URL` is not set. Please configure your Neon DB URL.")
+        st.stop()
     return psycopg.connect(DB_URL)
 
 
