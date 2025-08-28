@@ -52,11 +52,8 @@ def init_db() -> None:
             );
             """
         )
-        # Add date of birth column if missing
-        try:
-            conn.execute("ALTER TABLE babies ADD COLUMN dob DATE;")
-        except Exception:
-            pass
+        # Ensure date of birth column exists
+        conn.execute("ALTER TABLE babies ADD COLUMN IF NOT EXISTS dob DATE")
         # Create weights table for tracking baby weight over time
         conn.execute(
             """
