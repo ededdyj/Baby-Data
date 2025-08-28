@@ -396,8 +396,10 @@ def main() -> None:
     # Weight tracking
     with st.expander("Track weight"):
         wt_date = st.date_input("Weight date", value=local_today, key="weight_date")
-        weight = st.number_input("Weight", min_value=0.0, step=0.1, format="%.1f")
+        weight_lbs = st.number_input("Pounds", min_value=0, step=1, format="%d", key="weight_lbs")
+        weight_oz = st.number_input("Ounces", min_value=0, max_value=15, step=1, format="%d", key="weight_oz")
         if st.button("Save weight", key="save_weight"):
+            total_weight = weight_lbs + weight_oz / 16
             with get_conn() as conn:
                 conn.execute(
                     Q("""
@@ -405,10 +407,10 @@ def main() -> None:
                     VALUES (%s, %s, %s)
                     ON CONFLICT (baby_id, date) DO UPDATE SET weight = excluded.weight;
                     """),
-                    (baby_id, wt_date.isoformat(), weight),
+                    (baby_id, wt_date.isoformat(), total_weight),
                 )
                 conn.commit()
-            st.success(f"Saved weight for {wt_date.isoformat()}: {weight}")
+            st.success(f"Saved weight for {wt_date.isoformat()}: {weight_lbs} lb {weight_oz} oz")
 
     # History and charts
     st.subheader("History & insights")
