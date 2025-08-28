@@ -340,6 +340,8 @@ def main() -> None:
         st.success(f"Saved {baby_name}'s entry for {when.strftime('%Y-%m-%d %I:%M %p')}")
 
     with st.expander("Manage data (delete)"):
+        # Require correct DOB before allowing deletions
+        confirm_del_dob = st.date_input("Confirm baby's date of birth to delete", value=dob, key="confirm_del_dob")
         c1, c2, c3 = st.columns([2, 2, 3])
         with c1:
             del_time = st.selectbox(
@@ -350,25 +352,33 @@ def main() -> None:
             )
             del_when = datetime.combine(entry_date, del_time)
             if st.button("Delete this time", key="btn_del_hour"):
-                with get_conn() as conn:
-                    count = delete_entry(conn, baby_id, del_when)
-                    conn.commit()
-                st.warning(f"Deleted {count} entry for {del_when.strftime('%Y-%m-%d %I:%M %p')}")
+                if confirm_del_dob != dob:
+                    st.error("Date of birth does not match; delete aborted.")
+                else:
+                    with get_conn() as conn:
+                        count = delete_entry(conn, baby_id, del_when)
+                        conn.commit()
+                    st.warning(f"Deleted {count} entry for {del_when.strftime('%Y-%m-%d %I:%M %p')}")
 
         with c2:
             del_day = st.date_input("Day to delete", value=entry_date, key="del_day")
             if st.button("Delete this day", key="btn_del_day"):
-                with get_conn() as conn:
-                    count = delete_day(conn, baby_id, del_day)
-                    conn.commit()
-                st.warning(f"Deleted {count} entries on {del_day.isoformat()}")
+                if confirm_del_dob != dob:
+                    st.error("Date of birth does not match; delete aborted.")
+                else:
+                    with get_conn() as conn:
+                        count = delete_day(conn, baby_id, del_day)
+                        conn.commit()
+                    st.warning(f"Deleted {count} entries on {del_day.isoformat()}")
 
         with c3:
             st.markdown("Danger zone")
             scope = st.selectbox("Scope", ["Selected baby", "All babies"])
             confirm_text = st.text_input("Type DELETE to confirm", key="confirm_all")
             if st.button("Delete all data", key="btn_del_all"):
-                if confirm_text != "DELETE":
+                if confirm_del_dob != dob:
+                    st.error("Date of birth does not match; delete aborted.")
+                elif confirm_text != "DELETE":
                     st.error("Confirmation text does not match. Type DELETE to proceed.")
                 else:
                     with get_conn() as conn:
@@ -384,7 +394,9 @@ def main() -> None:
             # Delete baby record
             confirm_baby = st.text_input("Type DELETE BABY to confirm", key="confirm_baby")
             if st.button("Delete baby", key="btn_del_baby"):
-                if confirm_baby != "DELETE BABY":
+                if confirm_del_dob != dob:
+                    st.error("Date of birth does not match; delete aborted.")
+                elif confirm_baby != "DELETE BABY":
                     st.error("Confirmation text does not match. Type DELETE BABY to proceed.")
                 else:
                     with get_conn() as conn:
