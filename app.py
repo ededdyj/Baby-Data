@@ -200,7 +200,7 @@ def render_charts(df: pd.DataFrame) -> None:
                       var_name="event", value_name="value")
     df_long = df_long[df_long["value"] == 1]
 
-    # Daily totals per event (bar chart)
+    # Daily totals per event (grouped bar chart)
     daily_chart = (
         alt.Chart(df_long)
         .transform_aggregate(
@@ -212,6 +212,7 @@ def render_charts(df: pd.DataFrame) -> None:
             x=alt.X("date:T", title="Date"),
             y=alt.Y("count:Q", title="Count"),
             color=alt.Color("event:N", title="Event"),
+            xOffset="event:N",
             tooltip=["date:T", "event:N", alt.Tooltip("count:Q", title="Count")],
         )
         .properties(height=220)
