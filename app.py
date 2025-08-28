@@ -276,11 +276,29 @@ def main() -> None:
         entry_date = st.date_input("Date", value=date.today())
     with col2:
         selected_time = st.selectbox("Time", options=time_slots, format_func=lambda t: t.strftime("%I:%M %p"))
+
+    # Pre-fill checkboxes with existing entry data if present
+    entry_when = datetime.combine(entry_date, selected_time)
+    with get_conn() as conn:
+        cur = conn.execute(
+            Q("""
+            SELECT milk, pee, poop
+            FROM entries
+            WHERE baby_id = ? AND ts = ?;
+            """),
+            (baby_id, entry_when.isoformat()),
+        )
+        row = cur.fetchone()
+    if row:
+        default_milk, default_pee, default_poop = bool(row[0]), bool(row[1]), bool(row[2])
+    else:
+        default_milk, default_pee, default_poop = False, False, False
+
     with col3:
-        milk = st.checkbox("Milk 🍼", value=False)
+        milk = st.checkbox("Milk 🍼", value=default_milk)
     with col4:
-        pee = st.checkbox("#1 💧", value=False)
-        poop = st.checkbox("#2 💩", value=False)
+        pee = st.checkbox("#1 💧", value=default_pee)
+        poop = st.checkbox("#2 💩", value=default_poop)
 
     when = datetime.combine(entry_date, selected_time)
     if st.button("Save entry", type="primary"):
