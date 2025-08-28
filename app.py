@@ -360,49 +360,6 @@ def main() -> None:
                         conn.commit()
                     st.warning(f"Deleted {count} entry for {del_when.strftime('%Y-%m-%d %I:%M %p')}")
 
-        with c2:
-            del_day = st.date_input("Day to delete", value=entry_date, key="del_day")
-            if st.button("Delete this day", key="btn_del_day"):
-                if confirm_del_dob != dob:
-                    st.error("Date of birth does not match; delete aborted.")
-                else:
-                    with get_conn() as conn:
-                        count = delete_day(conn, baby_id, del_day)
-                        conn.commit()
-                    st.warning(f"Deleted {count} entries on {del_day.isoformat()}")
-
-        with c3:
-            st.markdown("Danger zone")
-            scope = st.selectbox("Scope", ["Selected baby", "All babies"])
-            confirm_text = st.text_input("Type DELETE to confirm", key="confirm_all")
-            if st.button("Delete all data", key="btn_del_all"):
-                if confirm_del_dob != dob:
-                    st.error("Date of birth does not match; delete aborted.")
-                elif confirm_text != "DELETE":
-                    st.error("Confirmation text does not match. Type DELETE to proceed.")
-                else:
-                    with get_conn() as conn:
-                        if scope == "Selected baby":
-                            count = delete_all_for_baby(conn, baby_id)
-                            conn.commit()
-                            st.error(f"Deleted {count} entries for {baby_name}.")
-                        else:
-                            delete_everything(conn)
-                            conn.commit()
-                            st.error("Deleted ALL babies and entries.")
-
-            # Delete baby record
-            confirm_baby = st.text_input("Type DELETE BABY to confirm", key="confirm_baby")
-            if st.button("Delete baby", key="btn_del_baby"):
-                if confirm_del_dob != dob:
-                    st.error("Date of birth does not match; delete aborted.")
-                elif confirm_baby != "DELETE BABY":
-                    st.error("Confirmation text does not match. Type DELETE BABY to proceed.")
-                else:
-                    with get_conn() as conn:
-                        delete_baby(conn, baby_id)
-                        conn.commit()
-        st.error(f"Deleted baby {baby_name} and all its data.")
     st.divider()
 
     # Weight tracking
