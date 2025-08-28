@@ -52,6 +52,23 @@ def init_db() -> None:
             );
             """
         )
+        # Add date of birth column if missing
+        try:
+            conn.execute("ALTER TABLE babies ADD COLUMN dob DATE;")
+        except Exception:
+            pass
+        # Create weights table for tracking baby weight over time
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS weights (
+                id BIGSERIAL PRIMARY KEY,
+                baby_id INTEGER NOT NULL REFERENCES babies(id) ON DELETE CASCADE,
+                date DATE NOT NULL,
+                weight REAL NOT NULL,
+                UNIQUE (baby_id, date)
+            );
+            """
+        )
 
 
 def delete_entry(conn, baby_id: int, when: datetime) -> int:
@@ -270,6 +287,18 @@ def main() -> None:
         baby_id = get_or_create_baby(conn, baby_name)
         conn.commit()
 
+    # Date of birth input and persistence
+    with get_conn() as conn:
+        cur = conn.execute(Q("SELECT dob FROM babies WHERE id = %s;"), (baby_id,))
+        existing_dob = cur.fetchone()[0]
+    dob_default = existing_dob or local_today
+    dob = st.sidebar.date_input("Date of birth", value=dob_default)
+    if dob != existing_dob and st.sidebar.button("Save DOB", key="save_dob"):
+        with get_conn() as conn:
+            conn.execute(Q("UPDATE babies SET dob = %s WHERE id = %s;"), (dob.isoformat(), baby_id))
+            conn.commit()
+        st.sidebar.success("Saved date of birth.")
+
     # Entry form
     st.subheader("Add or update an hourly entry")
     time_slots = [time(h, m) for h in range(24) for m in (0, 30)]
@@ -364,9 +393,25 @@ def main() -> None:
                     with get_conn() as conn:
                         delete_baby(conn, baby_id)
                         conn.commit()
-                    st.error(f"Deleted baby {baby_name} and all its data.")
-
+        st.error(f"Deleted baby {baby_name} and all its data.")
     st.divider()
+
+    # Weight tracking
+    with st.expander("Track weight"):
+        wt_date = st.date_input("Weight date", value=local_today, key="weight_date")
+        weight = st.number_input("Weight", min_value=0.0, step=0.1, format="%.1f")
+        if st.button("Save weight", key="save_weight"):
+            with get_conn() as conn:
+                conn.execute(
+                    Q("""
+                    INSERT INTO weights (baby_id, date, weight)
+                    VALUES (%s, %s, %s)
+                    ON CONFLICT (baby_id, date) DO UPDATE SET weight = excluded.weight;
+                    """),
+                    (baby_id, wt_date.isoformat(), weight),
+                )
+                conn.commit()
+            st.success(f"Saved weight for {wt_date.isoformat()}: {weight}")
 
     # History and charts
     st.subheader("History & insights")
@@ -418,6 +463,13 @@ def main() -> None:
     with get_conn() as conn:
         df = fetch_entries(conn, baby_id, start_dt, end_dt)
 
+    # Day of life metric
+    with get_conn() as conn:
+        cur = conn.execute(Q("SELECT dob FROM babies WHERE id = %s;"), (baby_id,))
+        dob_val = cur.fetchone()[0]
+    if dob_val:
+        day_of_life = (local_today - dob_val).days + 1
+        st.metric("Day of life", day_of_life)
     # Show quick metrics
     if not df.empty:
         total_milk = int(df["milk"].sum())
@@ -432,6 +484,27 @@ def main() -> None:
         st.dataframe(df.sort_values("ts", ascending=False), use_container_width=True)
 
     render_charts(df)
+
+    # Weight trend chart
+    with get_conn() as conn:
+        w_rows = conn.execute(
+            Q("SELECT date, weight FROM weights WHERE baby_id = %s ORDER BY date ASC;"),
+            (baby_id,),
+        ).fetchall()
+    if w_rows:
+        w_df = pd.DataFrame(w_rows, columns=["date", "weight"])
+        w_df["date"] = pd.to_datetime(w_df["date"])  # parse dates
+        weight_chart = (
+            alt.Chart(w_df)
+            .mark_line(point=True)
+            .encode(
+                x=alt.X("date:T", title="Date"),
+                y=alt.Y("weight:Q", title="Weight"),
+                tooltip=[alt.Tooltip("date:T", title="Date"), alt.Tooltip("weight:Q", title="Weight")],
+            )
+        )
+        st.subheader("Weight over time")
+        st.altair_chart(weight_chart, use_container_width=True)
 
 
 if __name__ == "__main__":
