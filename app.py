@@ -122,20 +122,23 @@ def fetch_entries(
     start: datetime,
     end: datetime,
 ) -> pd.DataFrame:
+    # load all entries for baby, then filter by timestamp range in Python for correct inclusion
     cur = conn.execute(
         Q("""
         SELECT e.ts, e.milk, e.pee, e.poop
         FROM entries e
-        WHERE e.baby_id = ? AND e.ts BETWEEN ? AND ?
+        WHERE e.baby_id = ?
         ORDER BY e.ts ASC;
         """),
-        (baby_id, start.isoformat(), end.isoformat()),
+        (baby_id,)
     )
     rows = cur.fetchall()
     if not rows:
-        return pd.DataFrame(columns=["ts", "milk", "pee", "poop"])  # empty
+        return pd.DataFrame(columns=["ts", "milk", "pee", "poop"])
     df = pd.DataFrame(rows, columns=["ts", "milk", "pee", "poop"])
     df["ts"] = pd.to_datetime(df["ts"])  # parse ISO timestamps
+    # apply start/end filter in Python to handle timezone-aware strings
+    df = df.loc[(df["ts"] >= start) & (df["ts"] <= end)]
     df["date"] = df["ts"].dt.date
     df["hour"] = df["ts"].dt.strftime("%I:%M %p")
     return df
