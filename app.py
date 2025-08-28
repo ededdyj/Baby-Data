@@ -1,101 +1,59 @@
 from __future__ import annotations
 
 import os
-import sqlite3
-from pathlib import Path
 from datetime import date, datetime, time, timedelta
 
 import pandas as pd
 import streamlit as st
 import altair as alt
-
-
-APP_DIR = Path(__file__).parent
-DB_PATH = APP_DIR / "babydata.db"
-
+import psycopg  # psycopg3
 
 DB_URL = st.secrets.get("DATABASE_URL") or os.getenv("DATABASE_URL")
-IS_PG = bool(DB_URL)
-
-if IS_PG:
-    import psycopg  # psycopg3
+IS_PG = True
 
 
 def get_conn():
-    """
-    Return a DB connection usable with `with get_conn() as conn:` in both SQLite and Postgres.
-    """
-    if IS_PG:
-        return psycopg.connect(DB_URL)  # sslmode handled in URL (Neon requires it)
-    else:
-        conn = sqlite3.connect(DB_PATH)
-        conn.execute("PRAGMA foreign_keys = ON;")
-        return conn
+    """Return a Postgres connection to Neon DB."""
+    return psycopg.connect(DB_URL)
 
 
 def Q(sql: str) -> str:
-    """
-    Convert SQLite-style '?' placeholders to psycopg '%s' when using Postgres.
-    """
-    return sql.replace("?", "%s") if IS_PG else sql
+    """Convert SQLite-style '?' placeholders to psycopg '%s'."""
+    return sql.replace("?", "%s")
 
 
 def init_db() -> None:
     with get_conn() as conn:
-        if IS_PG:
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS babies (
-                    id BIGSERIAL PRIMARY KEY,
-                    name TEXT NOT NULL UNIQUE
-                );
-                """
-            )
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS entries (
-                    id BIGSERIAL PRIMARY KEY,
-                    baby_id INTEGER NOT NULL REFERENCES babies(id) ON DELETE CASCADE,
-                    ts TEXT NOT NULL,
-                    milk INTEGER NOT NULL DEFAULT 0,
-                    pee  INTEGER NOT NULL DEFAULT 0,
-                    poop INTEGER NOT NULL DEFAULT 0,
-                    UNIQUE (baby_id, ts)
-                );
-                """
-            )
-        else:
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS babies (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT NOT NULL UNIQUE
-                );
-                """
-            )
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS entries (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    baby_id INTEGER NOT NULL,
-                    ts TEXT NOT NULL, -- ISO timestamp at minute resolution
-                    milk INTEGER NOT NULL DEFAULT 0,
-                    pee INTEGER NOT NULL DEFAULT 0,
-                    poop INTEGER NOT NULL DEFAULT 0,
-                    UNIQUE (baby_id, ts),
-                    FOREIGN KEY (baby_id) REFERENCES babies (id) ON DELETE CASCADE
-                );
-                """
-            )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS babies (
+                id BIGSERIAL PRIMARY KEY,
+                name TEXT NOT NULL UNIQUE
+            );
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS entries (
+                id BIGSERIAL PRIMARY KEY,
+                baby_id INTEGER NOT NULL REFERENCES babies(id) ON DELETE CASCADE,
+                ts TEXT NOT NULL,
+                milk INTEGER NOT NULL DEFAULT 0,
+                pee  INTEGER NOT NULL DEFAULT 0,
+                poop INTEGER NOT NULL DEFAULT 0,
+                UNIQUE (baby_id, ts)
+            );
+            """
+        )
 
 
-def delete_entry(conn: sqlite3.Connection, baby_id: int, when: datetime) -> int:
+def delete_entry(conn, baby_id: int, when: datetime) -> int:
     ts = when.isoformat()
     cur = conn.execute(Q("DELETE FROM entries WHERE baby_id = ? AND ts = ?;"), (baby_id, ts))
     return cur.rowcount
 
 
-def delete_day(conn: sqlite3.Connection, baby_id: int, day: date) -> int:
+def delete_day(conn, baby_id: int, day: date) -> int:
     start_dt = datetime.combine(day, time(0, 0))
     end_dt = datetime.combine(day, time(23, 59, 59))
     cur = conn.execute(
@@ -105,26 +63,26 @@ def delete_day(conn: sqlite3.Connection, baby_id: int, day: date) -> int:
     return cur.rowcount
 
 
-def delete_all_for_baby(conn: sqlite3.Connection, baby_id: int) -> int:
+def delete_all_for_baby(conn, baby_id: int) -> int:
     cur = conn.execute(Q("DELETE FROM entries WHERE baby_id = ?;"), (baby_id,))
     return cur.rowcount
 
 
-def delete_everything(conn: sqlite3.Connection) -> None:
+def delete_everything(conn) -> None:
     conn.execute("DELETE FROM entries;")
     conn.execute("DELETE FROM babies;")
 
-def delete_baby(conn: sqlite3.Connection, baby_id: int) -> int:
+def delete_baby(conn, baby_id: int) -> int:
     cur = conn.execute(Q("DELETE FROM babies WHERE id = ?;"), (baby_id,))
     return cur.rowcount
 
 
-def list_babies(conn: sqlite3.Connection) -> list[str]:
+def list_babies(conn) -> list[str]:
     cur = conn.execute("SELECT name FROM babies ORDER BY name ASC;")
     return [r[0] for r in cur.fetchall()]
 
 
-def get_or_create_baby(conn: sqlite3.Connection, name: str) -> int:
+def get_or_create_baby(conn, name: str) -> int:
     name = name.strip()
     if not name:
         raise ValueError("Baby name cannot be empty")
@@ -132,16 +90,12 @@ def get_or_create_baby(conn: sqlite3.Connection, name: str) -> int:
     row = cur.fetchone()
     if row:
         return row[0]
-    # Insert new baby and return generated ID, handling SQLite vs Postgres
-    if IS_PG:
-        cur = conn.execute(Q("INSERT INTO babies (name) VALUES (? ) RETURNING id;"), (name,))
-        return cur.fetchone()[0]
-    cur = conn.execute(Q("INSERT INTO babies (name) VALUES (?);"), (name,))
-    return cur.lastrowid
+    cur = conn.execute(Q("INSERT INTO babies (name) VALUES (?) RETURNING id;"), (name,))
+    return cur.fetchone()[0]
 
 
 def upsert_entry(
-    conn: sqlite3.Connection,
+    conn,
     baby_id: int,
     when: datetime,
     milk: bool,
