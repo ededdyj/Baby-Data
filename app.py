@@ -232,6 +232,8 @@ def main() -> None:
     # DataFrame serialization uses Arrow by default in modern Streamlit
     st.title("BabyData: Hourly Baby Log 🍼")
     st.caption("Track milk, #1, and #2 by hour, with history and charts.")
+    # Compute local today for entry defaults
+    local_today = datetime.now(LOCAL_TZ).date()
 
     init_db()
 
@@ -273,7 +275,7 @@ def main() -> None:
     time_slots = [time(h, m) for h in range(24) for m in (0, 30)]
     col1, col2, col3, col4 = st.columns([2, 2, 2, 3])
     with col1:
-        entry_date = st.date_input("Date", value=date.today())
+        entry_date = st.date_input("Date", value=local_today)
     with col2:
         selected_time = st.selectbox("Time", options=time_slots, format_func=lambda t: t.strftime("%I:%M %p"))
 
