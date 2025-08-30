@@ -240,6 +240,23 @@ def render_charts(df: pd.DataFrame) -> None:
     st.subheader("Event scatter plots by day")
     st.altair_chart(scatter, use_container_width=True)
 
+    # Compute average interval between events
+    st.subheader("Average interval between events")
+    avg_list = []
+    for event, group in df_long.groupby("event"):
+        times = group["ts"].sort_values()
+        if len(times) >= 2:
+            avg_delta = times.diff().mean()
+            avg_list.append({"Event": event.title(), "Avg Interval": avg_delta})
+        else:
+            avg_list.append({"Event": event.title(), "Avg Interval": pd.NaT})
+    avg_df = pd.DataFrame(avg_list)
+    # Format intervals as strings
+    avg_df["Avg Interval"] = avg_df["Avg Interval"].apply(
+        lambda td: str(td) if pd.notnull(td) else "N/A"
+    )
+    st.table(avg_df)
+
 
 def main() -> None:
     st.set_page_config(page_title="BabyData", page_icon="🍼", layout="wide")
