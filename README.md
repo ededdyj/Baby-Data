@@ -16,11 +16,22 @@ A simple Streamlit app to log a baby's hourly events: Milk, #1 (pee), and #2 (po
 
    - `streamlit run app.py`
 
-The first run creates a local SQLite database file `babydata.db` in this folder.
+4. Configure your Neon DB URL
+
+   - Create `.streamlit/secrets.toml` with:
+
+     ```toml
+     DATABASE_URL = "<your Neon DB URL>"
+     ```
+
+   - Or set an environment variable:
+
+     ```bash
+     export DATABASE_URL="<your Neon DB URL>"
+     ```
 
 ## Notes
 
 - If `pip` is missing on Raspberry Pi OS Lite: `sudo apt install -y python3-pip python3-venv`.
 - To stop the app, press `Ctrl+C` in the terminal.
-- Data is stored locally; back up `babydata.db` to save history.
-
+- This app requires a Neon Postgres database; ensure `DATABASE_URL` is set as shown above.
